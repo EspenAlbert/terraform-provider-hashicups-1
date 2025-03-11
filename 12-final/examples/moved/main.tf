@@ -1,8 +1,6 @@
 terraform {
   required_providers {
-    hashicups = {
-      #   source = "hashicorp.com/edu/hashicups"
-    }
+    hashicups = {}
   }
   required_version = ">1.10"
 }
@@ -13,7 +11,7 @@ provider "hashicups" {
   password = "test123"
 }
 
-# create this legacy resource first
+# LEGACY RESOURCE
 # resource "hashicups_order_legacy" "edu" {
 #   items = [{
 #     coffee = {
@@ -29,6 +27,7 @@ provider "hashicups" {
 #   }]
 # }
 
+# NEW RESOURCE
 moved {
   from = hashicups_order_legacy.edu
   to   = hashicups_order.edu
@@ -50,6 +49,12 @@ resource "hashicups_order" "edu" {
 }
 
 
-output "edu_order_legacy" {
+# LEGACY OUTPUT VAR
+# output "edu_order_legacy" {
+#   value = hashicups_order_legacy.edu
+# }
+
+# NEW OUTPUT VAR
+output "edu_order" {
   value = hashicups_order.edu
 }
