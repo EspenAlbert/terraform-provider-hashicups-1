@@ -1,7 +1,12 @@
 default: fmt lint install generate
 
+BINARY_NAME=terraform-provider-hashicups
+DESTINATION=./bin/$(BINARY_NAME)
+
+LINKER_FLAGS=-s -w -X 'github.com/hashicorp/terraform-provider-hashicups/version.ProviderVersion=local'
+
 build:
-	go build -v ./...
+	go build -ldflags "$(LINKER_FLAGS)" -o $(DESTINATION)
 
 install: build
 	go install -v ./...

@@ -4,11 +4,11 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6/tf6server"
 
 	"terraform-provider-hashicups/internal/provider"
 )
@@ -37,20 +37,16 @@ func main() {
 
 	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
-
-	opts := providerserver.ServeOpts{
-		// NOTE: This is not a typical Terraform Registry provider address,
-		// such as registry.terraform.io/hashicorp/hashicups. This specific
-		// provider address is used in these tutorials in conjunction with a
-		// specific Terraform CLI configuration for manual development testing
-		// of this provider.
-		Address: "hashicorp.com/edu/hashicups",
-		Debug:   debug,
+	var serveOpts []tf6server.ServeOpt
+	if debug {
+		serveOpts = append(serveOpts, tf6server.WithManagedDebug())
 	}
-
-	err := providerserver.Serve(context.Background(), provider.New(version), opts)
-
+	err := tf6server.Serve(
+		"hashicorp.com/edu/hashicups",
+		providerserver.NewProtocol6(provider.New(version)()),
+		serveOpts...,
+	)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 }

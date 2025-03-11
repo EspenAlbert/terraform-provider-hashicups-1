@@ -1,10 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package provider
 
 import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hashicorp-demoapp/hashicups-client-go"
@@ -14,38 +16,35 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
-	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource                = &orderResource{}
-	_ resource.ResourceWithConfigure   = &orderResource{}
-	_ resource.ResourceWithImportState = &orderResource{}
-	_ resource.ResourceWithMoveState   = &orderResource{}
+	_ resource.Resource                = &orderLegacyResource{}
+	_ resource.ResourceWithConfigure   = &orderLegacyResource{}
+	_ resource.ResourceWithImportState = &orderLegacyResource{}
 )
 
-// NewOrderResource is a helper function to simplify the provider implementation.
-func NewOrderResource() resource.Resource {
-	return &orderResource{}
+// NewOrderLegacyResource is a helper function to simplify the provider implementation.
+func NewOrderLegacyResource() resource.Resource {
+	return &orderLegacyResource{}
 }
 
-// orderResourceModel maps the resource schema data.
-type orderResourceModel struct {
-	ID          types.String     `tfsdk:"id"`
-	Items       []orderItemModel `tfsdk:"items"`
-	LastUpdated types.String     `tfsdk:"last_updated"`
+// orderLegacyResourceModel maps the resource schema data.
+type orderLegacyResourceModel struct {
+	ID          types.String           `tfsdk:"id"`
+	Items       []orderLegacyItemModel `tfsdk:"items"`
+	LastUpdated types.String           `tfsdk:"last_updated"`
 }
 
-// orderItemModel maps order item data.
-type orderItemModel struct {
-	Coffee   orderItemCoffeeModel `tfsdk:"coffee"`
-	Quantity types.Int64          `tfsdk:"quantity"`
+// orderLegacyItemModel maps orderLegacy item data.
+type orderLegacyItemModel struct {
+	Coffee   orderLegacyItemCoffeeModel `tfsdk:"coffee"`
+	Quantity types.Int64                `tfsdk:"quantity"`
 }
 
-// orderItemCoffeeModel maps coffee order item data.
-type orderItemCoffeeModel struct {
+// orderLegacyItemCoffeeModel maps coffee orderLegacy item data.
+type orderLegacyItemCoffeeModel struct {
 	ID          types.Int64   `tfsdk:"id"`
 	Name        types.String  `tfsdk:"name"`
 	Teaser      types.String  `tfsdk:"teaser"`
@@ -54,77 +53,43 @@ type orderItemCoffeeModel struct {
 	Image       types.String  `tfsdk:"image"`
 }
 
-// orderResource is the resource implementation.
-type orderResource struct {
+// orderLegacyResource is the resource implementation.
+type orderLegacyResource struct {
 	client *hashicups.Client
 }
 
-func (r *orderResource) MoveState(context.Context) []resource.StateMover {
-	return []resource.StateMover{{StateMover: stateMover}}
-}
-func stateMover(ctx context.Context, req resource.MoveStateRequest, resp *resource.MoveStateResponse) {
-	if req.SourceTypeName != "hashicups_order_legacy" || !strings.HasSuffix(req.SourceProviderAddress, "/hashicups"){
-		return
-	}
-	// Use always new sharding config when moving from cluster to adv_cluster
-	rawStateValue, err := req.SourceRawState.UnmarshalWithOpts(tftypes.Object{
-		AttributeTypes: map[string]tftypes.Type{
-			"id": tftypes.String,
-		},
-	}, tfprotov6.UnmarshalOpts{ValueFromJSONOpts: tftypes.ValueFromJSONOpts{IgnoreUndefinedAttributes: true}})
-	diags := &resp.Diagnostics
-	if err != nil {
-		diags.AddError("Unable to Unmarshal state", err.Error())
-		return
-	}
-	var stateObj map[string]tftypes.Value
-	if err := rawStateValue.As(&stateObj); err != nil {
-		diags.AddError("Unable to Parse state", err.Error())
-		return
-	}
-	var id *string
-	if err := stateObj["id"].As(&id); err != nil {
-		diags.AddError("Unable to Parse id from state", err.Error())
-		return
-	}
-	model := orderResourceModel{
-		ID: types.StringPointerValue(id),
-	}
-	diags.Append(resp.TargetState.Set(ctx, model)...)
-}
-
 // Metadata returns the resource type name.
-func (r *orderResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_order"
+func (r *orderLegacyResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_order_legacy"
 }
 
 // Schema defines the schema for the resource.
-func (r *orderResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *orderLegacyResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages an order.",
+		Description: "Manages an orderLegacy.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Numeric identifier of the order.",
+				Description: "Numeric identifier of the orderLegacy.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"last_updated": schema.StringAttribute{
-				Description: "Timestamp of the last Terraform update of the order.",
+				Description: "Timestamp of the last Terraform update of the orderLegacy.",
 				Computed:    true,
 			},
 			"items": schema.ListNestedAttribute{
-				Description: "List of items in the order.",
+				Description: "List of items in the orderLegacy.",
 				Required:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"quantity": schema.Int64Attribute{
-							Description: "Count of this item in the order.",
+							Description: "Count of this item in the orderLegacy.",
 							Required:    true,
 						},
 						"coffee": schema.SingleNestedAttribute{
-							Description: "Coffee item in the order.",
+							Description: "Coffee item in the orderLegacy.",
 							Required:    true,
 							Attributes: map[string]schema.Attribute{
 								"id": schema.Int64Attribute{
@@ -161,9 +126,9 @@ func (r *orderResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 }
 
 // Create a new resource.
-func (r *orderResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *orderLegacyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Retrieve values from plan
-	var plan orderResourceModel
+	var plan orderLegacyResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -185,8 +150,8 @@ func (r *orderResource) Create(ctx context.Context, req resource.CreateRequest, 
 	order, err := r.client.CreateOrder(items)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating order",
-			"Could not create order, unexpected error: "+err.Error(),
+			"Error creating orderLegacy",
+			"Could not create orderLegacy, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -194,8 +159,8 @@ func (r *orderResource) Create(ctx context.Context, req resource.CreateRequest, 
 	// Map response body to schema and populate Computed attribute values
 	plan.ID = types.StringValue(strconv.Itoa(order.ID))
 	for orderItemIndex, orderItem := range order.Items {
-		plan.Items[orderItemIndex] = orderItemModel{
-			Coffee: orderItemCoffeeModel{
+		plan.Items[orderItemIndex] = orderLegacyItemModel{
+			Coffee: orderLegacyItemCoffeeModel{
 				ID:          types.Int64Value(int64(orderItem.Coffee.ID)),
 				Name:        types.StringValue(orderItem.Coffee.Name),
 				Teaser:      types.StringValue(orderItem.Coffee.Teaser),
@@ -217,30 +182,30 @@ func (r *orderResource) Create(ctx context.Context, req resource.CreateRequest, 
 }
 
 // Read resource information.
-func (r *orderResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *orderLegacyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	// Get current state
-	var state orderResourceModel
+	var state orderLegacyResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Get refreshed order value from HashiCups
-	order, err := r.client.GetOrder(state.ID.ValueString())
+	// Get refreshed orderLegacy value from HashiCups
+	orderLegacy, err := r.client.GetOrder(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Reading HashiCups Order",
-			"Could not read HashiCups order ID "+state.ID.ValueString()+": "+err.Error(),
+			"Error Reading HashiCups orderLegacy",
+			"Could not read HashiCups orderLegacy ID "+state.ID.ValueString()+": "+err.Error(),
 		)
 		return
 	}
 
 	// Overwrite items with refreshed state
-	state.Items = []orderItemModel{}
-	for _, item := range order.Items {
-		state.Items = append(state.Items, orderItemModel{
-			Coffee: orderItemCoffeeModel{
+	state.Items = []orderLegacyItemModel{}
+	for _, item := range orderLegacy.Items {
+		state.Items = append(state.Items, orderLegacyItemModel{
+			Coffee: orderLegacyItemCoffeeModel{
 				ID:          types.Int64Value(int64(item.Coffee.ID)),
 				Name:        types.StringValue(item.Coffee.Name),
 				Teaser:      types.StringValue(item.Coffee.Teaser),
@@ -260,9 +225,9 @@ func (r *orderResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 }
 
-func (r *orderResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *orderLegacyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// Retrieve values from plan
-	var plan orderResourceModel
+	var plan orderLegacyResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -280,32 +245,32 @@ func (r *orderResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		})
 	}
 
-	// Update existing order
+	// Update existing orderLegacy
 	_, err := r.client.UpdateOrder(plan.ID.ValueString(), hashicupsItems)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Updating HashiCups Order",
-			"Could not update order, unexpected error: "+err.Error(),
+			"Error Updating HashiCups orderLegacy",
+			"Could not update orderLegacy, unexpected error: "+err.Error(),
 		)
 		return
 	}
 
-	// Fetch updated items from GetOrder as UpdateOrder items are not
+	// Fetch updated items from GetorderLegacy as UpdateorderLegacy items are not
 	// populated.
-	order, err := r.client.GetOrder(plan.ID.ValueString())
+	orderLegacy, err := r.client.GetOrder(plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Reading HashiCups Order",
-			"Could not read HashiCups order ID "+plan.ID.ValueString()+": "+err.Error(),
+			"Error Reading HashiCups orderLegacy",
+			"Could not read HashiCups orderLegacy ID "+plan.ID.ValueString()+": "+err.Error(),
 		)
 		return
 	}
 
 	// Update resource state with updated items and timestamp
-	plan.Items = []orderItemModel{}
-	for _, item := range order.Items {
-		plan.Items = append(plan.Items, orderItemModel{
-			Coffee: orderItemCoffeeModel{
+	plan.Items = []orderLegacyItemModel{}
+	for _, item := range orderLegacy.Items {
+		plan.Items = append(plan.Items, orderLegacyItemModel{
+			Coffee: orderLegacyItemCoffeeModel{
 				ID:          types.Int64Value(int64(item.Coffee.ID)),
 				Name:        types.StringValue(item.Coffee.Name),
 				Teaser:      types.StringValue(item.Coffee.Teaser),
@@ -325,28 +290,28 @@ func (r *orderResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 }
 
-func (r *orderResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *orderLegacyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// Retrieve values from state
-	var state orderResourceModel
+	var state orderLegacyResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Delete existing order
+	// Delete existing orderLegacy
 	err := r.client.DeleteOrder(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Deleting HashiCups Order",
-			"Could not delete order, unexpected error: "+err.Error(),
+			"Error Deleting HashiCups orderLegacy",
+			"Could not delete orderLegacy, unexpected error: "+err.Error(),
 		)
 		return
 	}
 }
 
 // Configure adds the provider configured client to the resource.
-func (r *orderResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *orderLegacyResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Add a nil check when handling ProviderData because Terraform
 	// sets that data after it calls the ConfigureProvider RPC.
 	if req.ProviderData == nil {
@@ -367,7 +332,7 @@ func (r *orderResource) Configure(_ context.Context, req resource.ConfigureReque
 	r.client = client
 }
 
-func (r *orderResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *orderLegacyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Retrieve import ID and save to id attribute
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

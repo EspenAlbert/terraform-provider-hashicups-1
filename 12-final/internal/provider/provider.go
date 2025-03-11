@@ -212,6 +212,7 @@ func (p *hashicupsProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *hashicupsProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewOrderResource,
+		NewOrderLegacyResource,
 	}
 }
 
