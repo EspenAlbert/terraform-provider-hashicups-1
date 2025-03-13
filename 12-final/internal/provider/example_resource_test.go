@@ -22,10 +22,27 @@ const exampleEmpty = `resource "hashicups_example" "test" {}`
 var (
 	ctx                = context.Background()
 	string1            = types.StringValue("1")
-	emptyResponse      = tfModelResp(string1, nil)
-	responseWithValues = tfModelResp(string1, &TFModelRootComputedOptional{
-		Computed: types.StringValue("computed"),
-		Optional: types.StringValue("optional"),
+	emptyResponse      = tfModelResp(tfModelDef{id: string1})
+	responseWithValues = tfModelResp(tfModelDef{
+		id: string1,
+		rootComputedOptional: &TFModelRootComputedOptional{
+			Computed: types.StringValue("computed"),
+			Optional: types.StringValue("optional"),
+		},
+	})
+	responseWithDefault = tfModelResp(tfModelDef{
+		id: string1,
+		rootComputedDefault: &TFModelRootComputedDefault{
+			Computed: types.StringValue("computed"),
+			Default:  types.StringValue(DefaultValue),
+		},
+	})
+	responseWithNonDefault = tfModelResp(tfModelDef{
+		id: string1,
+		rootComputedDefault: &TFModelRootComputedDefault{
+			Computed: types.StringValue("computed"),
+			Default:  types.StringValue("non-default"),
+		},
 	})
 )
 
@@ -46,22 +63,33 @@ func asObjectValue[T any](ctx context.Context, t T, attrs map[string]attr.Type) 
 	return objType
 }
 
-func tfModelReq(id types.String, rootComputedOptional *TFModelRootComputedOptional) *TFModel {
-	return tfModel(id, rootComputedOptional, true)
+type tfModelDef struct {
+	id                   types.String
+	rootComputedOptional *TFModelRootComputedOptional
+	rootComputedDefault  *TFModelRootComputedDefault
 }
 
-func tfModelResp(id types.String, rootComputedOptional *TFModelRootComputedOptional) *TFModel {
-	return tfModel(id, rootComputedOptional, false)
+func tfModelReq(model tfModelDef) *TFModel {
+	return tfModel(model, true)
 }
 
-func tfModel(id types.String, rootComputedOptional *TFModelRootComputedOptional, useUnknownForNull bool) *TFModel {
-	computedOptional := asObjectValue(ctx, rootComputedOptional, ModelRootComputedOptionalObjectType.AttrTypes)
+func tfModelResp(model tfModelDef) *TFModel {
+	return tfModel(model, false)
+}
+
+func tfModel(model tfModelDef, useUnknownForNull bool) *TFModel {
+	computedOptional := asObjectValue(ctx, model.rootComputedOptional, ModelRootComputedOptionalObjectType.AttrTypes)
 	if useUnknownForNull && computedOptional.IsNull() {
 		computedOptional = types.ObjectUnknown(ModelRootComputedOptionalObjectType.AttrTypes)
 	}
+	computedDefault := asObjectValue(ctx, model.rootComputedDefault, ModelRootComputedDefaultObjectType.AttrTypes)
+	if useUnknownForNull && computedDefault.IsNull() {
+		computedDefault = types.ObjectUnknown(ModelRootComputedDefaultObjectType.AttrTypes)
+	}
 	return &TFModel{
-		Id:                   id,
+		Id:                   model.id,
 		RootComputedOptional: computedOptional,
+		RootComputedDefault:  computedDefault,
 	}
 }
 
@@ -87,15 +115,38 @@ func TestAccNestedComputedOptionalOK(t *testing.T) {
 		}),
 		Config: exampleEmpty,
 		Check: assertGlobalState(t, APIBehaviorStruct{
-			CreateObject: tfModelReq(types.StringUnknown(), nil),
+			CreateObject: tfModelReq(tfModelDef{id: types.StringUnknown()}),
 		}),
 	}))
 }
-func TestAccNestedComputedOptionalNonEmptyPlanWhenResponseIsSet(t *testing.T) {
+func TestAccErrorNestedComputedOptionalNonEmptyPlanWhenResponseIsSet(t *testing.T) {
 	resource.Test(t, testCase(resource.TestStep{
 		PreConfig: preConfig(func() {
 			APIBehavior.CreateResponse = responseWithValues
 			APIBehavior.ReadResponse = responseWithValues
+		}),
+		Config: exampleEmpty,
+	}))
+}
+
+func TestAccNestedComputedDefaultAPIReturnDefaultOK(t *testing.T) {
+	resource.Test(t, testCase(resource.TestStep{
+		PreConfig: preConfig(func() {
+			APIBehavior.CreateResponse = responseWithDefault
+			APIBehavior.ReadResponse = responseWithDefault
+		}),
+		Config: exampleEmpty,
+		Check: assertGlobalState(t, APIBehaviorStruct{
+			CreateObject: tfModelReq(tfModelDef{id: types.StringUnknown()}),
+		}),
+	}))
+}
+
+func TestAccErrorNestedComputedDefaultNonEmptyPlanWhenResponseIsNonDefault(t *testing.T) {
+	resource.Test(t, testCase(resource.TestStep{
+		PreConfig: preConfig(func() {
+			APIBehavior.CreateResponse = responseWithNonDefault
+			APIBehavior.ReadResponse = responseWithNonDefault
 		}),
 		Config: exampleEmpty,
 	}))

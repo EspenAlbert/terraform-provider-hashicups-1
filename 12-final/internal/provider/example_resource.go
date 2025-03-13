@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -20,6 +21,10 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &ExampleResource{}
 var _ resource.ResourceWithImportState = &ExampleResource{}
+
+const (
+	DefaultValue = "some-default"
+)
 
 func NewExampleResource() resource.Resource {
 	return &ExampleResource{}
@@ -33,6 +38,7 @@ type ExampleResource struct {
 // TFModel describes the resource data model.
 type TFModel struct {
 	RootComputedOptional types.Object `tfsdk:"root_computed_optional"`
+	RootComputedDefault  types.Object `tfsdk:"root_computed_default"`
 	Id                   types.String `tfsdk:"id"`
 }
 
@@ -44,6 +50,16 @@ type TFModelRootComputedOptional struct {
 var ModelRootComputedOptionalObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
 	"computed": types.StringType,
 	"optional": types.StringType,
+}}
+
+type TFModelRootComputedDefault struct {
+	Computed types.String `tfsdk:"computed"`
+	Default  types.String `tfsdk:"default"`
+}
+
+var ModelRootComputedDefaultObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+	"computed": types.StringType,
+	"default":  types.StringType,
 }}
 
 type APIBehaviorStruct struct {
@@ -90,6 +106,20 @@ func (r *ExampleResource) Schema(ctx context.Context, req resource.SchemaRequest
 					},
 					"optional": schema.StringAttribute{
 						Optional: true,
+					},
+				},
+			},
+			"root_computed_default": schema.SingleNestedAttribute{
+				Computed: true,
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"computed": schema.StringAttribute{
+						Computed: true,
+					},
+					"default": schema.StringAttribute{
+						Computed: true,
+						Optional: true,
+						Default:  stringdefault.StaticString(DefaultValue),
 					},
 				},
 			},
