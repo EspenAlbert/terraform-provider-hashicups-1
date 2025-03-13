@@ -44,6 +44,13 @@ var (
 			Default:  types.StringValue("non-default"),
 		},
 	})
+	responseWithRequiredSet = tfModelResp(tfModelDef{
+		id: string1,
+		rootComputedRequired: &TFModelRootComputedRequired{
+			Computed: types.StringValue("computed"),
+			Required: types.StringValue("some-value"),
+		},
+	})
 )
 
 func assertGlobalState(t *testing.T, expectedState APIBehaviorStruct) func(_ *terraform.State) error {
@@ -67,6 +74,7 @@ type tfModelDef struct {
 	id                   types.String
 	rootComputedOptional *TFModelRootComputedOptional
 	rootComputedDefault  *TFModelRootComputedDefault
+	rootComputedRequired *TFModelRootComputedRequired
 }
 
 func tfModelReq(model tfModelDef) *TFModel {
@@ -86,10 +94,15 @@ func tfModel(model tfModelDef, useUnknownForNull bool) *TFModel {
 	if useUnknownForNull && computedDefault.IsNull() {
 		computedDefault = types.ObjectUnknown(ModelRootComputedDefaultObjectType.AttrTypes)
 	}
+	computedRequired := asObjectValue(ctx, model.rootComputedRequired, ModelRootComputedRequiredObjectType.AttrTypes)
+	if useUnknownForNull && computedRequired.IsNull() {
+		computedRequired = types.ObjectUnknown(ModelRootComputedRequiredObjectType.AttrTypes)
+	}
 	return &TFModel{
 		Id:                   model.id,
 		RootComputedOptional: computedOptional,
 		RootComputedDefault:  computedDefault,
+		RootComputedRequired: computedRequired,
 	}
 }
 
@@ -107,7 +120,7 @@ func testCase(steps ...resource.TestStep) resource.TestCase {
 	}
 }
 
-func TestAccNestedComputedOptionalOK(t *testing.T) {
+func TestAccNestedEmptyResponseOK(t *testing.T) {
 	resource.Test(t, testCase(resource.TestStep{
 		PreConfig: preConfig(func() {
 			APIBehavior.CreateResponse = emptyResponse
@@ -147,6 +160,16 @@ func TestAccErrorNestedComputedDefaultNonEmptyPlanWhenResponseIsNonDefault(t *te
 		PreConfig: preConfig(func() {
 			APIBehavior.CreateResponse = responseWithNonDefault
 			APIBehavior.ReadResponse = responseWithNonDefault
+		}),
+		Config: exampleEmpty,
+	}))
+}
+
+func TestAccErrorNestedComputedRequiredNonEmptyPlanWhenResponseForRequiredIsSet(t *testing.T) {
+	resource.Test(t, testCase(resource.TestStep{
+		PreConfig: preConfig(func() {
+			APIBehavior.CreateResponse = responseWithRequiredSet
+			APIBehavior.ReadResponse = responseWithRequiredSet
 		}),
 		Config: exampleEmpty,
 	}))

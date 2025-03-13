@@ -39,6 +39,7 @@ type ExampleResource struct {
 type TFModel struct {
 	RootComputedOptional types.Object `tfsdk:"root_computed_optional"`
 	RootComputedDefault  types.Object `tfsdk:"root_computed_default"`
+	RootComputedRequired types.Object `tfsdk:"root_computed_required"`
 	Id                   types.String `tfsdk:"id"`
 }
 
@@ -60,6 +61,16 @@ type TFModelRootComputedDefault struct {
 var ModelRootComputedDefaultObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
 	"computed": types.StringType,
 	"default":  types.StringType,
+}}
+
+type TFModelRootComputedRequired struct {
+	Computed types.String `tfsdk:"computed"`
+	Required types.String `tfsdk:"required"`
+}
+
+var ModelRootComputedRequiredObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+	"computed": types.StringType,
+	"required": types.StringType,
 }}
 
 type APIBehaviorStruct struct {
@@ -120,6 +131,18 @@ func (r *ExampleResource) Schema(ctx context.Context, req resource.SchemaRequest
 						Computed: true,
 						Optional: true,
 						Default:  stringdefault.StaticString(DefaultValue),
+					},
+				},
+			},
+			"root_computed_required": schema.SingleNestedAttribute{
+				Computed: true,
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"computed": schema.StringAttribute{
+						Computed: true,
+					},
+					"required": schema.StringAttribute{
+						Required: true,
 					},
 				},
 			},
