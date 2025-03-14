@@ -30,6 +30,13 @@ var (
 			Optional: types.StringValue("optional"),
 		},
 	})
+	responseWithNullForOptional = tfModelResp(tfModelDef{
+		id: string1,
+		rootComputedOptional: &TFModelRootComputedOptional{
+			Computed: types.StringValue("computed"),
+			Optional: types.StringNull(),
+		},
+	})
 	responseWithDefault = tfModelResp(tfModelDef{
 		id: string1,
 		rootComputedDefault: &TFModelRootComputedDefault{
@@ -132,6 +139,20 @@ func TestAccNestedEmptyResponseOK(t *testing.T) {
 		}),
 	}))
 }
+
+func TestAccNestedComputedOptionalResponseNullForOptionalOK(t *testing.T) {
+	resource.Test(t, testCase(resource.TestStep{
+		PreConfig: preConfig(func() {
+			APIBehavior.CreateResponse = responseWithNullForOptional
+			APIBehavior.ReadResponse = responseWithNullForOptional
+		}),
+		Config: exampleEmpty,
+		Check: assertGlobalState(t, APIBehaviorStruct{
+			CreateObject: tfModelReq(tfModelDef{id: types.StringUnknown()}),
+		}),
+	}))
+}
+
 func TestAccErrorNestedComputedOptionalNonEmptyPlanWhenResponseIsSet(t *testing.T) {
 	resource.Test(t, testCase(resource.TestStep{
 		PreConfig: preConfig(func() {
